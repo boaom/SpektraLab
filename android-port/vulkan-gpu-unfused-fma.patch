@@ -1,0 +1,31 @@
+diff --git a/engine/src/gpu/vulkan_gpu.cpp b/engine/src/gpu/vulkan_gpu.cpp
+index 5421a00..dd851de 100644
+--- a/engine/src/gpu/vulkan_gpu.cpp
++++ b/engine/src/gpu/vulkan_gpu.cpp
+@@ -292,15 +292,22 @@ public:
+             detail = "Vulkan probe passed (precise product + fused fma; full shader parity pending)";
+             return true;
+         }
+-        if (zero && !exact && properties_.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU) {
++        if (zero && !exact) {
+             // The double-float kernels then take an exact Dekker product
+             // instead of fma (specialization constant 0; see two_prod in
+             // spk_iir_df_acc.comp): without it the IIR blur's low word is lost
+             // and the recursion amplifies it -- 0.4 % on a 257-px constant row.
++            // Android port: Qualcomm Adreno lowers GLSL.std.450 Fma to mul+add
++            // (two roundings) on real GPUs, exactly like Mesa's lavapipe; the
++            // same Dekker path applies there. The mode stays reported in
++            // `capabilities.backend.math_mode`, never silently.
+             fused_fma_ = 0;
+-            detail = "Vulkan probe passed on a CPU device with unfused fma (double-float kernels use an "
+-                     "exact Dekker product; full shader parity pending)";
+-            probe_cpu_storage_range(detail);
++            const bool cpu = properties_.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU;
++            detail = cpu ? "Vulkan probe passed on a CPU device with unfused fma (double-float kernels use an "
++                           "exact Dekker product; full shader parity pending)"
++                         : "Vulkan probe passed on a GPU with unfused fma (double-float kernels use an exact "
++                           "Dekker product; Android Adreno lowers Fma to mul+add; full shader parity pending)";
++            if (cpu) probe_cpu_storage_range(detail);
+             return true;
+         }
+         if (!exact && !zero) { detail = "Vulkan math probe produced no informative residuals"; return false; }
