@@ -694,8 +694,8 @@ public class MainActivity extends Activity {
 
     private String edgeLeft(String stage) {
         String name = filmIdx >= 0 && filmIdx < catalog.films.size()
-                ? catalog.filmNames.get(catalog.films.get(filmIdx)) : "—";
-        return "SPEKTRALAB ▷ " + (name == null ? "—" : name).toUpperCase(Locale.US);
+                ? catalog.films.get(filmIdx) : null;
+        return "SPEKTRALAB ▷ " + catalog.filmName(name).toUpperCase(Locale.US);
     }
 
     private String filmId() {
@@ -714,7 +714,7 @@ public class MainActivity extends Activity {
         if (rowFilm == null) return;
         String fid = filmId();
         homeEdge.set(edgeLeft("曝光 EXPOSE"), "曝光 EXPOSE");
-        rowFilm.value.setText((catalog.filmNames.get(fid) == null ? "—" : catalog.filmNames.get(fid)) + " ›");
+        rowFilm.value.setText(catalog.filmName(fid) + " ›");
         rowPaper.value.setText(catalog.paperName(paperId()) + " ›");
         rowTier.value.setText(tierName() + " ›");
         evChip.setText((ev >= 0 ? "+" : "") + String.format(Locale.US, "%.1f", ev) + " EV");

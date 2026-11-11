@@ -75,7 +75,14 @@ final class Catalog {
     }
 
     String paperName(String id) {
+        if (id == null) return "—";
         String n = paperNames.get(id);
+        return n != null ? n : pretty(id);
+    }
+
+    String filmName(String id) {
+        if (id == null) return "—";
+        String n = filmNames.get(id);
         return n != null ? n : pretty(id);
     }
 
@@ -139,6 +146,7 @@ final class Catalog {
     }
 
     static String pretty(String id) {
+        if (id == null || id.isEmpty()) return "—";
         String[] parts = id.split("_");
         StringBuilder b = new StringBuilder();
         for (String p : parts) {
