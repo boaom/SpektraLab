@@ -28,7 +28,7 @@ build() {
 
   javac -source 1.8 -target 1.8 -encoding UTF-8 -Xlint:-options \
     -bootclasspath "$AJ" -classpath "$AJ" \
-    java/app/spektralab/mobile/MainActivity.java -d classes
+    $(find java -name '*.java') -d classes
   java -cp "$BT/lib/d8.jar" com.android.tools.r8.D8 \
     --min-api 30 --lib "$AJ" --output dexout \
     $(find classes -name '*.class')

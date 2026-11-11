@@ -17,6 +17,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Compile-check the UI (fast, before the engine build)
+        run: |
+          curl -sS -o /tmp/pf.zip https://dl.google.com/android/repository/platform-33-ext4_r01.zip
+          unzip -qo /tmp/pf.zip -d /tmp/pf
+          AJ=$(find /tmp/pf -name android.jar | head -1)
+          mkdir -p /tmp/ui-classes
+          javac -source 1.8 -target 1.8 -encoding UTF-8 -Xlint:-options \
+            -bootclasspath "$AJ" -classpath "$AJ" \
+            $(find android-port/apk/java -name '*.java') -d /tmp/ui-classes
+          echo "UI compiles clean"
+
       - name: Install build deps
         run: sudo apt-get update && sudo apt-get install -y ninja-build glslang-tools zip
 
@@ -34,6 +45,14 @@ jobs:
         run: |
           git apply android-port/vulkan-gpu-unfused-fma.patch
           git apply android-port/cmake-min-version.patch
+
+      - name: Cache engine build
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/android-ci/build
+            engine/third_party
+          key: spk-engine-${{ hashFiles('engine/**', 'android-port/build-host.sh', 'android-port/android-toolchain-ndk.cmake', 'android-port/*.patch') }}
 
       - name: Build engine + host for Android aarch64
         run: bash android-port/build-host.sh
