@@ -19,6 +19,7 @@ final class Catalog {
     final List<String> papers = new ArrayList<>();
     final Map<String, String> paperNames = new LinkedHashMap<>();
     final Map<String, String> defaultPaper = new LinkedHashMap<>(); // film -> paper
+    String error;
 
     /** Kodak / Fuji box colours; anything else gets a muted hash hue. */
     private static final Map<String, Integer> BOX = new LinkedHashMap<>();
@@ -110,7 +111,7 @@ final class Catalog {
                 }
             }
         } catch (Exception e) {
-            // keep whatever loaded; fall back to one stock so the UI has a row
+            c.error = e.toString();
         }
         if (c.films.isEmpty()) {
             c.films.add("kodak_portra_400");

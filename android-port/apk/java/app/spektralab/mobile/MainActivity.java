@@ -108,11 +108,6 @@ public class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
-        catalog = Catalog.load(this);
-        if (!catalog.films.isEmpty()) {
-            String def = catalog.defaultPaper.get(catalog.films.get(0));
-            if (def != null) paperIdx = Math.max(0, catalog.papers.indexOf(def));
-        }
         buildShell();
         show("home");
         new Thread(new Runnable() {
@@ -123,6 +118,15 @@ public class MainActivity extends Activity {
                         public void run() {
                             engine = e;
                             engineLine = e.deviceName;
+                            // the catalogue lives in the staged engine resources, so it can
+                            // only be read after the engine has unpacked its assets
+                            catalog = Catalog.load(MainActivity.this);
+                            if (!catalog.films.isEmpty()) {
+                                String def = catalog.defaultPaper.get(catalog.films.get(0));
+                                if (def != null) paperIdx = Math.max(0, catalog.papers.indexOf(def));
+                            }
+                            refreshHome();
+                            refreshFilms();
                             refreshDevelop();
                             if (pickedPng != null) previewSoon();
                         }
@@ -181,7 +185,7 @@ public class MainActivity extends Activity {
         root.addView(navWrap, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         String[] ids = { "home", "films", "adjust", "develop", "prints" };
-        String[] glyphs = { "◉", "≡", "⌁", "◐", "▦" };
+        String[] glyphs = { "◉", "≡", "±", "◐", "▦" };
         String[] labels = { "曝光", "胶片", "修片", "显影", "印相" };
         for (int i = 0; i < ids.length; i++) {
             final String id = ids[i];
@@ -386,9 +390,11 @@ public class MainActivity extends Activity {
             filmsList.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
 
-        TextView note = Ui.text(this, "共 " + catalog.films.size() + " 支实测 profile，"
+        TextView note = Ui.text(this, catalog.error != null
+                ? "目录读取失败：" + catalog.error
+                : "共 " + catalog.films.size() + " 支实测 profile，"
                 + catalog.papers.size() + " 种相纸。每支胶片自动配对 profile 内的默认相纸（target_print）。",
-                9f, Ui.DIM);
+                9f, catalog.error != null ? Ui.AMBER : Ui.DIM);
         note.setLineSpacing(Ui.dp(this, 3), 1f);
         note.setPadding(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 16), Ui.dp(this, 16));
         filmsList.addView(note);
