@@ -103,6 +103,7 @@ public class MainActivity extends Activity {
     final ExecutorService ex = Executors.newSingleThreadExecutor();
     final Handler ui = new Handler(Looper.getMainLooper());
     int seq;
+    String openKey = "";   // params the live session was opened with
 
     // ==================== lifecycle ====================
 
@@ -122,8 +123,13 @@ public class MainActivity extends Activity {
                             // only be read after the engine has unpacked its assets
                             catalog = Catalog.load(MainActivity.this);
                             if (!catalog.films.isEmpty()) {
-                                String def = catalog.defaultPaper.get(catalog.films.get(0));
-                                if (def != null) paperIdx = Math.max(0, catalog.papers.indexOf(def));
+                                // start on Kodak Portra 400 -- the stock every screenshot in
+                                // the repo uses -- or the first film if the catalogue differs
+                                int pi = catalog.films.indexOf("kodak_portra_400");
+                                filmIdx = pi >= 0 ? pi : 0;
+                                String target = catalog.filmTarget.get(catalog.films.get(filmIdx));
+                                if (target != null && catalog.papers.indexOf(target) >= 0)
+                                    paperIdx = catalog.papers.indexOf(target);
                             }
                             refreshHome();
                             refreshFilms();
@@ -288,6 +294,10 @@ public class MainActivity extends Activity {
         rowPaper = new Ui.Row(this, "相纸 PAPER", "—", false);
         rowPaper.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                if (catalog.isPositive(filmId())) {
+                    toast("幻灯片没有相纸：引擎直接扫描这张反转片");
+                    return;
+                }
                 if (catalog.papers.isEmpty()) return;
                 paperIdx = (paperIdx + 1) % catalog.papers.size();
                 refreshHome();
@@ -377,9 +387,10 @@ public class MainActivity extends Activity {
             row.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     filmIdx = idx;
-                    String def = catalog.defaultPaper.get(catalog.films.get(idx));
-                    if (def != null) {
-                        int pi = catalog.papers.indexOf(def);
+                    String target = catalog.filmTarget.get(catalog.films.get(idx));
+                    if (target == null) target = catalog.defaultPaper.get(catalog.films.get(idx));
+                    if (target != null) {
+                        int pi = catalog.papers.indexOf(target);
                         if (pi >= 0) paperIdx = pi;
                     }
                     refreshHome();
@@ -715,7 +726,13 @@ public class MainActivity extends Activity {
         String fid = filmId();
         homeEdge.set(edgeLeft("曝光 EXPOSE"), "曝光 EXPOSE");
         rowFilm.value.setText(catalog.filmName(fid) + " ›");
-        rowPaper.value.setText(catalog.paperName(paperId()) + " ›");
+        if (catalog.isPositive(fid)) {
+            rowPaper.label.setText("成像 PROCESS");
+            rowPaper.value.setText("扫描 SCAN · 反转片");
+        } else {
+            rowPaper.label.setText("相纸 PAPER");
+            rowPaper.value.setText(catalog.paperName(paperId()) + " ›");
+        }
         rowTier.value.setText(tierName() + " ›");
         evChip.setText((ev >= 0 ? "+" : "") + String.format(Locale.US, "%.1f", ev) + " EV");
         canvasMsg.setVisibility(result == null ? View.VISIBLE : View.GONE);
@@ -791,7 +808,13 @@ public class MainActivity extends Activity {
         ex.execute(new Runnable() {
             public void run() {
                 try {
-                    engine.open(pickedPng.getAbsolutePath(), params());
+                    // re-open only when something the open baked in changed: an open
+                    // re-decodes the source, which is the slowest part of a develop
+                    String key = params().toString() + "|" + pickedPng.length();
+                    if (!key.equals(openKey) || engine.session == null) {
+                        engine.open(pickedPng.getAbsolutePath(), params());
+                        openKey = key;
+                    }
                     Map<String, Object> img = engine.render(full ? "full" : "preview", null);
                     final Bitmap bm = bitmapFrom(img);
                     final String saved = thenDevelop ? saveToGallery() : null;
@@ -819,7 +842,7 @@ public class MainActivity extends Activity {
                     ui.post(new Runnable() {
                         public void run() {
                             if (mySeq != seq) return;
-                            if (thenDevelop) { developing = false; done = false; }
+                            if (thenDevelop) { developing = false; done = false; pct = 0; }
                             refreshDevelop();
                             refreshHome();
                             toast("渲染失败：" + e.getMessage());
@@ -846,7 +869,9 @@ public class MainActivity extends Activity {
             public void run() {
                 if (!developing) return;
                 float k = Math.min(1f, (SystemClock.uptimeMillis() - t0) / (float) dur);
-                pct = Math.round(k * 100f);
+                // hold at 92% until the engine actually returns, so the bar never
+                // claims a print that has not landed
+                pct = Math.round(k * 92f);
                 refreshDevelop();
                 if (k < 1f) ui.postDelayed(this, 60);
             }
@@ -859,8 +884,13 @@ public class MainActivity extends Activity {
 
     private Map<String, Object> params() {
         LinkedHashMap<String, Object> p = new LinkedHashMap<>();
-        p.put("film_stock", filmId());
-        p.put("print_stock", paperId());
+        String film = filmId();
+        p.put("film_stock", film);
+        // a positive film has no paper: the print stage becomes a scan of the
+        // transparency (engine param io.scan_film). Sending a print stock with it
+        // renders the unmasked negative -- the orange, inverted frame.
+        if (catalog.isPositive(film)) p.put("scan_film", true);
+        else p.put("print_stock", paperId());
         p.put("exposure_compensation_ev", (double) ev);
         p.put("grain_amount", (double) grain);
         p.put("halation_amount", (double) hal);

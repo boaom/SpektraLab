@@ -62,6 +62,12 @@ final class Catalog {
         return (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(bl * 255);
     }
 
+    /** A slide has no paper: the engine scans the transparency instead. */
+    boolean isPositive(String id) {
+        String t = id == null ? null : filmType.get(id);
+        return "positive".equals(t) || "slide".equals(t) || "reversal".equals(t) || "transparency".equals(t);
+    }
+
     String filmMeta(String id) {
         String type = filmType.get(id);
         String zh;
@@ -120,6 +126,13 @@ final class Catalog {
         } catch (Exception e) {
             c.error = e.toString();
         }
+        java.util.Collections.sort(c.films, new java.util.Comparator<String>() {
+            public int compare(String a, String b) {
+                String na = c.filmNames.get(a), nb = c.filmNames.get(b);
+                return (na == null ? a : na).compareToIgnoreCase(nb == null ? b : nb);
+            }
+        });
+        java.util.Collections.sort(c.papers);
         if (c.films.isEmpty()) {
             c.films.add("kodak_portra_400");
             c.filmNames.put("kodak_portra_400", "Kodak Portra 400");
