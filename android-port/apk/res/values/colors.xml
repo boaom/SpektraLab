@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#14110D</color>
+    <color name="spk_bg">#14110D</color>
+    <color name="spk_nav">#171310</color>
+    <color name="spk_amber">#E8A13C</color>
+</resources>

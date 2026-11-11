@@ -23,7 +23,7 @@ fetch_tools() {
 build() {
   fetch_tools
   cd "$APK"
-  rm -rf classes dexout base.apk aligned.apk spektralab-mobile.apk
+  rm -rf classes dexout base.apk aligned.apk spektralab-mobile.apk res.zip
   mkdir -p classes dexout
 
   javac -source 1.8 -target 1.8 -encoding UTF-8 -Xlint:-options \
@@ -33,9 +33,13 @@ build() {
     --min-api 30 --lib "$AJ" --output dexout \
     $(find classes -name '*.class')
 
+  # compile the icon / theme resources into the link (aapt2 link takes .flat
+  # archives, so the res/ tree is compiled first)
+  "$BT/aapt2" compile --dir res -o res.zip
+
   "$BT/aapt2" link -o base.apk -I "$AJ" \
     --manifest AndroidManifest.xml \
-    -A assets \
+    -A assets res.zip \
     --min-sdk-version 30 --target-sdk-version 34 \
     --version-code 1 --version-name "1.0" \
     --auto-add-overlay
