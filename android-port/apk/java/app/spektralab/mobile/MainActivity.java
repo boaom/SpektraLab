@@ -104,6 +104,7 @@ public class MainActivity extends Activity {
     final Handler ui = new Handler(Looper.getMainLooper());
     int seq;
     String openKey = "";   // params the live session was opened with
+    String emptyMsg = "点此装入一张底片";
 
     // ==================== lifecycle ====================
 
@@ -157,12 +158,24 @@ public class MainActivity extends Activity {
         if (in != null) handleIncoming(in);
     }
 
+    private String lastDelivered = "";
+
     private void handleIncoming(Intent in) {
+        if (in == null) return;
         Uri u = null;
         String a = in.getAction();
         if (Intent.ACTION_VIEW.equals(a)) u = in.getData();
         else if (Intent.ACTION_SEND.equals(a)) u = (Uri) in.getParcelableExtra(Intent.EXTRA_STREAM);
-        if (u != null) load(u);
+        if (u == null) return;
+        String sig = u.toString();
+        if (sig.equals(lastDelivered)) return;   // onCreate + onResume both see it
+        lastDelivered = sig;
+        load(u);
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        handleIncoming(getIntent());
     }
 
     @Override protected void onDestroy() {
@@ -735,6 +748,7 @@ public class MainActivity extends Activity {
         }
         rowTier.value.setText(tierName() + " ›");
         evChip.setText((ev >= 0 ? "+" : "") + String.format(Locale.US, "%.1f", ev) + " EV");
+        canvasMsg.setText(emptyMsg);
         canvasMsg.setVisibility(result == null ? View.VISIBLE : View.GONE);
         if (pickedPng != null) {
             canvasMeta.setText("DENS 0.62 · γ 0.95 · " + (fullTier ? "full" : "2560") + "px · " + format);
@@ -771,15 +785,19 @@ public class MainActivity extends Activity {
                     dec.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
                 }
             });
-            pickedPng = new File(getCacheDir(), "pick.png");
+            pickedPng = new File(getCacheDir(), "pick.jpg");
             FileOutputStream fo = new FileOutputStream(pickedPng);
-            bmp.compress(Bitmap.CompressFormat.PNG, 100, fo);
+            // JPEG, not PNG: a 10 MP PNG encode takes >10 s on this hardware and the
+            // engine decodes either.
+            bmp.compress(Bitmap.CompressFormat.JPEG, 96, fo);
             fo.close();
             result = bmp;
             refreshHome();
+            emptyMsg = "点此装入一张底片";
             toast("已装入 " + bmp.getWidth() + "×" + bmp.getHeight());
             previewSoon();
         } catch (Exception e) {
+            emptyMsg = "载入失败：" + e.getMessage();
             toast("载入失败：" + e.getMessage());
         }
     }
