@@ -72,7 +72,7 @@ final class Catalog {
         String type = filmType.get(id);
         String zh;
         if ("negative".equals(type)) zh = "彩色负片";
-        else if ("slide".equals(type) || "reversal".equals(type)) zh = "彩色反转片";
+        else if ("slide".equals(type) || "reversal".equals(type) || "positive".equals(type)) zh = "彩色反转片";
         else if ("cine".equals(type)) zh = "电影负片";
         else zh = "profile";
         String target = filmTarget.get(id);

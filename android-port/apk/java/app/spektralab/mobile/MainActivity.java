@@ -281,6 +281,8 @@ public class MainActivity extends Activity {
 
         canvasMeta = Ui.text(this, "", 9f, Ui.AMBER);
         canvasMeta.setLetterSpacing(0.1f);
+        // the meta line sits on the print's own bottom edge, which can be bright
+        canvasMeta.setShadowLayer(4f, 0f, 1f, 0xCC000000);
         FrameLayout.LayoutParams metaLp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         metaLp.gravity = Gravity.BOTTOM | Gravity.LEFT;
         metaLp.leftMargin = Ui.dp(this, 9);
@@ -393,7 +395,7 @@ public class MainActivity extends Activity {
             row.addView(col, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
             if (sel) {
-                TextView badge = Ui.tracked(this, "已装 ▸", 9f, Ui.AMBER, 0.10f);
+                TextView badge = Ui.tracked(this, "已装", 9f, Ui.AMBER, 0.10f);
                 row.addView(badge);
             }
 
