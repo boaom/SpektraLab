@@ -73,6 +73,7 @@ public class MainActivity extends Activity {
     final ArrayList<String> formatNames = new ArrayList<>();
 
     TextView devPct, devNote;
+    android.widget.ImageView devPreview;
     Ui.Bar devBar;
     LinearLayout stagesBox, engineCard;
     TextView goPrints;
@@ -105,6 +106,7 @@ public class MainActivity extends Activity {
     int seq;
     String openKey = "";   // params the live session was opened with
     String emptyMsg = "点此装入一张底片";
+    long lastRenderMs;      // real wall clock of the last develop, not a fake stage timer
 
     // ==================== lifecycle ====================
 
@@ -604,6 +606,13 @@ public class MainActivity extends Activity {
         devNote.setLineSpacing(Ui.dp(this, 3), 1f);
         engineCard.addView(devNote);
 
+        devPreview = new android.widget.ImageView(this);
+        devPreview.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        devPreview.setVisibility(View.GONE);
+        LinearLayout.LayoutParams vlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 150));
+        vlp.topMargin = Ui.dp(this, 12);
+        box.addView(devPreview, vlp);
+
         goPrints = Ui.button(this, "去印相 ›");
         goPrints.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { show("prints"); }
@@ -625,6 +634,10 @@ public class MainActivity extends Activity {
                 done ? "印相完成" : (developing ? "显影中…" : "显影 DEVELOP"));
         devPct.setText(done ? "✓" : (pct + "%"));
         devBar.set(done ? 100 : pct);
+        if (devPreview != null) {
+            if (done && result != null) { devPreview.setImageBitmap(result); devPreview.setVisibility(View.VISIBLE); }
+            else devPreview.setVisibility(View.GONE);
+        }
         goPrints.setVisibility(done && !shots.isEmpty() ? View.VISIBLE : View.GONE);
 
         String[] stages = { "装片 LOAD", "光谱采样 SPECTRAL", "曝光 EXPOSE", "显影 DEVELOP", "印相 PRINT", "定影 FIX" };
@@ -638,7 +651,7 @@ public class MainActivity extends Activity {
             row.setPadding(0, Ui.dp(this, 6.5f), 0, Ui.dp(this, 6.5f));
             TextView l = Ui.text(this, (past ? "▸ " : now ? "▸▸ " : "·  ") + stages[i], 10.5f,
                     past ? Ui.PAPER : now ? Ui.AMBER : Ui.DIM);
-            TextView t = Ui.text(this, past ? String.format(Locale.US, "%.2f s", 0.1 + i * 0.13) : "", 10.5f, Ui.DIM);
+            TextView t = Ui.text(this, now ? "进行中" : "", 9f, Ui.DIM);
             row.addView(l, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             row.addView(t);
             stagesBox.addView(row);
@@ -646,6 +659,8 @@ public class MainActivity extends Activity {
         }
 
         devNote.setText("设备：" + engineLine + "\n"
+                + (lastRenderMs > 0 ? "本次显影：" + String.format(Locale.US, "%.1f s", lastRenderMs / 1000f)
+                        + "（含 JPEG 95 写相册）\n" : "")
                 + "管线：Vulkan 计算 · SPIR-V 内核 · 静态 libunwind\n"
                 + "输出：sRGB JPEG 95 → Pictures/SpektraLab\n"
                 + "全特效全渲染上限 ≈11 MP（Adreno 128 MiB staging）");
@@ -827,6 +842,7 @@ public class MainActivity extends Activity {
         final boolean full = thenDevelop && fullTier;
         ex.execute(new Runnable() {
             public void run() {
+                final long t0 = SystemClock.uptimeMillis();
                 try {
                     // re-open only when something the open baked in changed: an open
                     // re-decodes the source, which is the slowest part of a develop
@@ -838,10 +854,12 @@ public class MainActivity extends Activity {
                     Map<String, Object> img = engine.render(full ? "full" : "preview", null);
                     final Bitmap bm = bitmapFrom(img);
                     final String saved = thenDevelop ? saveToGallery() : null;
+                    final long ms = SystemClock.uptimeMillis() - t0;
                     ui.post(new Runnable() {
                         public void run() {
                             if (mySeq != seq) return;
                             result = bm;
+                            if (thenDevelop) lastRenderMs = ms;
                             if (thenDevelop) {
                                 developing = false;
                                 pct = 100;
@@ -885,6 +903,7 @@ public class MainActivity extends Activity {
 
         final long dur = fullTier ? 1900 : 1300;
         final long t0 = SystemClock.uptimeMillis();
+        lastRenderMs = 0;
         final Runnable tick = new Runnable() {
             public void run() {
                 if (!developing) return;
