@@ -31,7 +31,9 @@ jobs:
         run: ./setup-deps.sh
 
       - name: Apply android port patch (Adreno unfused-fma acceptance)
-        run: git apply android-port/vulkan-gpu-unfused-fma.patch
+        run: |
+          git apply android-port/vulkan-gpu-unfused-fma.patch
+          git apply android-port/cmake-min-version.patch
 
       - name: Build engine + host for Android aarch64
         run: bash android-port/build-host.sh
